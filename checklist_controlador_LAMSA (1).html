@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Controlador">
+<meta name="theme-color" content="#0d0f14">
+<title>Controlador de Praça · LAMSA</title>
+<!-- Fontes com fallback offline: se sem internet, usa fontes do sistema -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #141720;
+    --surface2: #1c2030;
+    --border: #252a3a;
+    --accent-day: #f5a623;
+    --accent-night: #4a9eff;
+    --accent-ok: #2ecc71;
+    --accent-warn: #e74c3c;
+    --text: #e8ecf4;
+    --text-dim: #6b7a99;
+    --text-mid: #9aa3bc;
+    --radius: 6px;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+    --display: 'Bebas Neue', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── GRID BG ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(74,158,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(74,158,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(13,15,20,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .logo-title {
+    font-family: var(--display);
+    font-size: 26px;
+    letter-spacing: 2px;
+    color: var(--text);
+  }
+
+  .logo-sub {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .live-clock {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--accent-night);
+    letter-spacing: 2px;
+  }
+
+  .live-date {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    text-align: right;
+    margin-top: 2px;
+  }
+
+  /* ── MAIN ── */
+  main {
+    position: relative;
+    z-index: 1;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 24px 20px 80px;
+  }
+
+  /* ── SHIFT SELECTOR ── */
+  .shift-selector {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  .shift-btn {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .shift-btn::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: var(--border);
+    transition: background 0.2s;
+  }
+
+  .shift-btn.day.active, .shift-btn.day:hover {
+    border-color: var(--accent-day);
+    background: rgba(245,166,35,0.06);
+  }
+  .shift-btn.day.active::before, .shift-btn.day:hover::before { background: var(--accent-day); }
+
+  .shift-btn.night.active, .shift-btn.night:hover {
+    border-color: var(--accent-night);
+    background: rgba(74,158,255,0.06);
+  }
+  .shift-btn.night.active::before, .shift-btn.night:hover::before { background: var(--accent-night); }
+
+  .shift-icon { font-size: 28px; margin-bottom: 6px; display: block; }
+  .shift-label { font-family: var(--display); font-size: 22px; letter-spacing: 1px; display: block; }
+  .shift-hours { font-family: var(--mono); font-size: 11px; color: var(--text-dim); letter-spacing: 1px; margin-top: 3px; display: block; }
+
+  /* ── INFO BAR ── */
+  .info-bar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+
+  .info-field {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+  }
+
+  .info-field label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .info-field input, .info-field select {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    width: 100%;
+    outline: none;
+  }
+
+  .info-field select option { background: var(--surface2); }
+
+  /* ── PROGRESS BAR ── */
+  .progress-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .progress-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    white-space: nowrap;
+  }
+
+  .progress-bar-outer {
+    flex: 1;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .progress-bar-inner {
+    height: 100%;
+    background: var(--accent-ok);
+    border-radius: 3px;
+    transition: width 0.4s ease;
+    width: 0%;
+  }
+
+  .progress-pct {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent-ok);
+    min-width: 40px;
+    text-align: right;
+  }
+
+  /* ── SECTION / HOUR BLOCK ── */
+  .hour-block {
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .hour-header {
+    background: var(--surface2);
+    padding: 12px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+  }
+
+  .hour-header:hover { background: #222740; }
+
+  .hour-tag {
+    font-family: var(--display);
+    font-size: 20px;
+    letter-spacing: 1px;
+  }
+
+  .hour-tag.day-color { color: var(--accent-day); }
+  .hour-tag.night-color { color: var(--accent-night); }
+
+  .hour-title {
+    font-size: 13px;
+    color: var(--text-mid);
+    margin-left: 12px;
+    font-weight: 300;
+  }
+
+  .hour-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .hour-count {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .hour-chevron {
+    font-size: 12px;
+    color: var(--text-dim);
+    transition: transform 0.2s;
+  }
+
+  .hour-block.open .hour-chevron { transform: rotate(180deg); }
+
+  .hour-body {
+    display: none;
+    padding: 0;
+  }
+
+  .hour-block.open .hour-body { display: block; }
+
+  /* ── CATEGORY LABEL ── */
+  .cat-label {
+    padding: 8px 18px 4px;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    border-top: 1px solid var(--border);
+    background: rgba(0,0,0,0.2);
+  }
+
+  .cat-label:first-child { border-top: none; }
+
+  /* ── CHECKLIST ITEM ── */
+  .check-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 11px 18px;
+    border-top: 1px solid rgba(255,255,255,0.04);
+    transition: background 0.15s;
+    cursor: pointer;
+  }
+
+  .check-item:hover { background: rgba(255,255,255,0.02); }
+
+  .check-item.done { opacity: 0.5; }
+
+  .check-box {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-radius: 4px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    font-size: 11px;
+  }
+
+  .check-item.done .check-box {
+    background: var(--accent-ok);
+    border-color: var(--accent-ok);
+    color: #fff;
+  }
+
+  .check-text {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text);
+    flex: 1;
+  }
+
+  .check-item.done .check-text {
+    text-decoration: line-through;
+    color: var(--text-dim);
+  }
+
+  .check-badge {
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+    margin-top: 3px;
+    text-transform: uppercase;
+  }
+
+  .badge-imp { background: rgba(231,76,60,0.15); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3); }
+  .badge-comm { background: rgba(74,158,255,0.12); color: #4a9eff; border: 1px solid rgba(74,158,255,0.25); }
+  .badge-sys { background: rgba(155,89,182,0.12); color: #9b59b6; border: 1px solid rgba(155,89,182,0.25); }
+  .badge-equip { background: rgba(46,204,113,0.1); color: #2ecc71; border: 1px solid rgba(46,204,113,0.2); }
+
+  /* ── NOTE FIELD ── */
+  .note-wrap {
+    padding: 10px 18px 14px;
+    border-top: 1px solid var(--border);
+    background: rgba(0,0,0,0.15);
+  }
+
+  .note-wrap label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .note-wrap textarea {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 8px 10px;
+    resize: vertical;
+    min-height: 60px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .note-wrap textarea:focus { border-color: var(--accent-night); }
+
+  /* ── BOTTOM ACTION BAR ── */
+  .action-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(13,15,20,0.97);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 100;
+  }
+
+  .action-status {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .action-status strong { color: var(--accent-ok); }
+
+  .btn-group { display: flex; gap: 10px; }
+
+  .btn {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 1px;
+    padding: 10px 20px;
+    border-radius: var(--radius);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-mid);
+  }
+
+  .btn-ghost:hover { border-color: var(--text-mid); color: var(--text); }
+
+  .btn-primary {
+    background: var(--accent-night);
+    color: #fff;
+    font-weight: 600;
+  }
+
+  .btn-primary:hover { background: #6ab4ff; transform: translateY(-1px); }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px;
+    width: 420px;
+    max-width: 95vw;
+  }
+
+  .modal h2 {
+    font-family: var(--display);
+    font-size: 24px;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+
+  .modal p {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 20px;
+    line-height: 1.6;
+  }
+
+  .modal-field {
+    margin-bottom: 14px;
+  }
+
+  .modal-field label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .modal-field input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .modal-field input:focus { border-color: var(--accent-night); }
+
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    background: var(--accent-ok);
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: var(--radius);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    z-index: 300;
+    transform: translateX(200px);
+    opacity: 0;
+    transition: all 0.3s ease;
+  }
+
+  .toast.show { transform: translateX(0); opacity: 1; }
+
+  /* ── RESPONSIVE / MOBILE ── */
+  @media (max-width: 600px) {
+    header { padding: 0 14px; height: 56px; }
+    .logo-title { font-size: 18px; letter-spacing: 1px; }
+    .logo-sub { font-size: 9px; }
+    .live-clock { font-size: 15px; }
+    .live-date { font-size: 9px; }
+
+    main { padding: 14px 12px 100px; }
+
+    .shift-selector { gap: 8px; margin-bottom: 16px; }
+    .shift-btn { padding: 14px 14px; }
+    .shift-icon { font-size: 22px; margin-bottom: 4px; }
+    .shift-label { font-size: 18px; }
+    .shift-hours { font-size: 10px; }
+
+    .info-bar { grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+    .info-bar .info-field:last-child { grid-column: 1 / -1; }
+    .info-field { padding: 8px 10px; }
+    .info-field input { font-size: 12px; }
+
+    .progress-wrap { padding: 10px 14px; margin-bottom: 16px; gap: 10px; }
+    .progress-label { font-size: 9px; display: none; }
+
+    .hour-header { padding: 10px 14px; }
+    .hour-tag { font-size: 17px; }
+    .hour-title { font-size: 12px; }
+
+    .cat-label { padding: 7px 14px 3px; font-size: 8px; }
+
+    .check-item { padding: 12px 14px; gap: 10px; }
+    .check-box { width: 24px; height: 24px; border-radius: 5px; font-size: 13px; flex-shrink: 0; }
+    .check-text { font-size: 13px; line-height: 1.55; }
+    .check-badge { font-size: 8px; padding: 2px 6px; }
+
+    .note-wrap { padding: 8px 14px 12px; }
+    .note-wrap textarea { font-size: 13px; min-height: 70px; }
+
+    .action-bar { padding: 10px 14px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+    .action-status { font-size: 10px; }
+    .btn { font-size: 11px; padding: 9px 14px; }
+
+    .modal { padding: 22px 18px; }
+    .modal h2 { font-size: 20px; }
+    .modal p { font-size: 12px; }
+    .modal-field input { font-size: 14px; padding: 12px; }
+    .btn-group { gap: 8px; }
+  }
+
+  /* toque mais fácil em mobile: área mínima 44px */
+  @media (hover: none) {
+    .check-item { min-height: 48px; }
+    .hour-header { min-height: 52px; }
+    .btn { min-height: 44px; }
+  }
+
+  /* safe area para iPhones com notch */
+  @supports (padding: max(0px)) {
+    header { padding-top: max(0px, env(safe-area-inset-top)); }
+    .action-bar { padding-bottom: max(14px, env(safe-area-inset-bottom)); }
+  }
+
+  /* ── BANNER "SALVAR NA TELA INICIAL" ── */
+  #install-banner {
+    display: none;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent-night);
+    margin: 0 0 16px;
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    font-size: 12px;
+    color: var(--text-mid);
+    line-height: 1.5;
+  }
+  #install-banner strong { color: var(--text); display: block; margin-bottom: 2px; font-family: var(--mono); font-size: 11px; letter-spacing: 1px; }
+  #install-banner.visible { display: block; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="logo-title">CONTROLADOR</span>
+    <div>
+      <div class="logo-sub">LAMSA · Praça de Pedágio</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div>
+      <div class="live-clock" id="clock">--:--:--</div>
+      <div class="live-date" id="dateDisplay">---</div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- TURNO -->
+  <div class="shift-selector">
+    <button class="shift-btn day active" onclick="setShift('day')">
+      <span class="shift-icon">☀️</span>
+      <span class="shift-label">Diurno</span>
+      <span class="shift-hours">06:00 · 18:00</span>
+    </button>
+    <button class="shift-btn night" onclick="setShift('night')">
+      <span class="shift-icon">🌙</span>
+      <span class="shift-label">Noturno</span>
+      <span class="shift-hours">18:00 · 06:00</span>
+    </button>
+  </div>
+
+  <!-- INFO -->
+  <div class="info-bar">
+    <div class="info-field">
+      <label>Controlador</label>
+      <input type="text" id="controlador" placeholder="Seu nome" />
+    </div>
+    <div class="info-field">
+      <label>Supervisor</label>
+      <input type="text" id="supervisor" placeholder="Nome do supervisor" />
+    </div>
+    <div class="info-field">
+      <label>Líder de Praça</label>
+      <input type="text" id="lider" placeholder="Nome do líder" />
+    </div>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="progress-wrap">
+    <span class="progress-label">PROGRESSO DO TURNO</span>
+    <div class="progress-bar-outer">
+      <div class="progress-bar-inner" id="progressBar"></div>
+    </div>
+    <span class="progress-pct" id="progressPct">0%</span>
+  </div>
+
+  <!-- BANNER INSTALAR -->
+  <div id="install-banner">
+    <strong>📱 SALVAR NA TELA INICIAL</strong>
+    iPhone/iPad: toque em <strong>Compartilhar →</strong> depois <strong>"Adicionar à Tela de Início"</strong>.<br>
+    Android: toque em <strong>⋮ Menu →</strong> depois <strong>"Adicionar à tela inicial"</strong>.
+  </div>
+
+  <!-- CHECKLIST DINÂMICO -->
+  <div id="checklist-container"></div>
+
+</main>
+
+<!-- ACTION BAR -->
+<div class="action-bar">
+  <div class="action-status">
+    <span id="statusText">0 de 0 itens concluídos</span>
+  </div>
+  <div class="btn-group">
+    <button class="btn btn-ghost" onclick="resetAll()">↺ Resetar</button>
+    <button class="btn btn-primary" onclick="openEmailModal()">✉ Enviar por E-mail</button>
+  </div>
+</div>
+
+<!-- MODAL EMAIL -->
+<div class="modal-overlay" id="emailModal">
+  <div class="modal">
+    <h2>Enviar Relatório</h2>
+    <p>O resumo do checklist será aberto no seu cliente de e-mail com os itens concluídos e pendentes.</p>
+    <div class="modal-field">
+      <label>Destinatário (e-mail)</label>
+      <input type="email" id="emailTo" placeholder="supervisor@lamsa.com.br" />
+    </div>
+    <div class="modal-field">
+      <label>Cópia (opcional)</label>
+      <input type="email" id="emailCc" placeholder="outro@lamsa.com.br" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeEmailModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="sendEmail()">Abrir E-mail</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────
+// DATA
+// ─────────────────────────────────────────
+const SHIFTS = {
+  day: {
+    label: 'Diurno',
+    hours: [
+      {
+        time: '06:00', title: 'Assumindo o Plantão', color: 'day-color',
+        items: [
+          { cat: 'COMUNICAÇÃO', text: 'Enviar mensagem no grupo informando a equipe que está assumindo o plantão (Supervisor, Líder, Controlador)', badge: 'comm' },
+          { cat: 'COMUNICAÇÃO', text: 'Informar quantidade de rádios na praça e no controle', badge: 'comm' },
+          { cat: 'COMUNICAÇÃO', text: 'Informar quantidade de equipamentos AVI\'S em funcionamento', badge: 'comm' },
+          { cat: 'COMUNICAÇÃO', text: 'Informar quantidade de máquinas dos OPAV em funcionamento', badge: 'comm' },
+          { cat: 'COMUNICAÇÃO', text: 'Informar quantidade de máquinas avulsas (controle/setor de cobrança e operação)', badge: 'comm' },
+          { cat: 'EFETIVO', text: 'Informar situação da equipe 06H às 18H: completo ou incompleto', badge: 'imp' },
+          { cat: 'EFETIVO', text: 'Informar total de atrasos (informados e não informados)', badge: 'imp' },
+          { cat: 'EFETIVO', text: 'Informar reposições, caso haja', badge: '' },
+          { cat: 'SISTEMA', text: 'Efetuar login com matrícula na CS e no SGAP o quanto antes', badge: 'sys' },
+          { cat: 'SISTEMA', text: 'Verificar se as abas do navegador estão abertas: Dimensionamento, R.O., Planilha de Chamados', badge: 'sys' },
+          { cat: 'SISTEMA', text: 'Verificar abas: Planilha Contagem Tempo de Fila, Planilha de Retenção, Planilha de Anomalias', badge: 'sys' },
+          { cat: 'SISTEMA', text: 'Verificar abas: Mapa de Vias, Aba do Maps, WhatsApp Web, BI, Aba Sitef', badge: 'sys' },
+          { cat: 'SISTEMA', text: 'Verificar abas: Chamados SGR, Chamados TI, Chamados CAUT, SGAP, Bitwarden', badge: 'sys' },
+          { cat: 'OPERAÇÃO', text: 'Realizar redimensionamento diário de acordo com as necessidades operacionais', badge: 'imp' },
+          { cat: 'OPERAÇÃO', text: 'Destacar operadores para: Rendição de QTO\'S, Sinalização nas pistas AVI\'S, Setor de Cobrança', badge: '' },
+          { cat: 'CÂMERAS', text: 'Verificar e registrar se as câmeras do Avançado estão devidamente posicionadas', badge: '' },
+        ],
+        note: true
+      },
+      {
+        time: '08:00', title: 'Efetivo + Fluxo', color: 'day-color',
+        items: [
+          { cat: 'EFETIVO', text: 'Informar situação da equipe 08H às 20H: completo ou incompleto', badge: 'imp' },
+          { cat: 'EFETIVO', text: 'Informar total de atrasos (informados e não informados) e reposições', badge: 'imp' },
+          { cat: 'OPERAÇÃO', text: 'Registrar PRINT dos OPAV na venda no grupo', badge: 'imp' },
+          { cat: 'FLUXO', text: 'Atualização de Fluxo na Via: altura do fluxo em ambos os sentidos e ações tomadas na praça', badge: 'comm' },
+          { cat: 'FLUXO', text: 'Informar quantidade de pistas AVI\'S abertas (incluindo reversíveis e pistas automáticas 04 e 05)', badge: '' },
+          { cat: 'FLUXO', text: 'Informar quantidade de OPAV disponíveis, quantos rendendo QTO e quantos em cabine/pista cobrindo faltas', badge: '' },
+          { cat: 'FLUXO', text: 'Informar Equipe PROEIS e Equipe do Setor de Cobrança', badge: '' },
+          { cat: 'FLUXO', text: 'Informar se estamos na semana de contagem do tempo de fila', badge: '' },
+          { cat: 'FLUXO', text: 'Informar informações relevantes: Túnel Livre / Retenções', badge: '' },
+          { cat: 'BI', text: 'Atualizar total de passantes e produtividade da equipe com os números reais do BI', badge: 'sys' },
+        ],
+        note: true
+      },
+      {
+        time: '09:00', title: 'Fluxo + Reversível', color: 'day-color',
+        items: [
+          { cat: 'FLUXO', text: 'Atualização de Fluxo na Via com informações relevantes e ações tomadas na praça', badge: 'comm' },
+          { cat: 'OPERAÇÃO', text: 'Informar fechamento da reversível e ações tomadas na praça', badge: '' },
+          { cat: 'OPERAÇÃO', text: 'Verificar possível reversão da Cabine 11 para sentido SUL caso haja fluxo de praia', badge: '' },
+          { cat: 'OPERAÇÃO', text: 'Registrar PRINT dos OPAV na venda no grupo', badge: 'imp' },
+        ],
+        note: true
+      },
+      {
+        time: '10:00', title: 'Equipe 10H + Fluxo', color: 'day-color',
+        items: [
+          { cat: 'EFETIVO', text: 'Informar situação da equipe 10H às 19H: completo ou incompleto', badge: 'imp' },
+          { cat: 'EFETIVO', text: 'Informar atrasos e reposições, atentar em remanejar linhas em caso de turno defasado', badge: 'imp' },
+          { cat: 'FLUXO', text: 'Atualização de Fluxo na Via com informações relevantes e ações tomadas', badge: 'comm' },
+          { cat: 'FLUXO', text: 'Informar OPAV disponíveis a venda, rendendo QTO, 1 de apoio rendendo QAR do Apoio Fixo', badge: '' },
+          { cat: 'FLUXO', text: 'Informar quantos de cabine/pista automática cobrindo linhas por faltas sem reposição', badge: '' },
+          { cat: 'OPERAÇÃO', text: 'Registrar PRINT dos OPAV na venda no grupo', badge: 'imp' },
+        ],
+        note: true
+      },
+      {
+        time: '11:00', title: 'Fluxo de Pico', color: 'day-color',
+        items: [
+          { cat: 'FLUXO', text: 'Atualização de Fluxo na Via com ações tomadas para melhor fluidez (ex: Cabine 10 revertida)', badge: 'comm' },
+          { cat: 'OPERAÇÃO', text: 'Verificar provável abertura da Pista 04 como automática (horário de pico)', badge: '' },
+          { cat: 'FLUXO', text: 'Informar OPAV disponíveis a venda, rendendo QTO, 1 apoio render QAR do Apoio Fixo', badge: '' },
+          { cat: 'BI', text: 'Atualizar total de passantes e produtividade da equipe no grupo (dados do BI)', badge: 'sys' },
+          { cat: 'OPERAÇÃO', text: 'Registrar PRINT dos OPAV na venda no grupo', badge: 'imp' },
+        ],
+        note: true
+      },
+      {
+        time: '12:00', title: 'Repetir processo 11H', color: 'day-color',
+        items: [
+          { cat: 'FLUXO', text: 'Atualização de Fluxo na Via (mesmo processo das 11H)', badge: 'comm' },
+          { cat: 'FLUXO', text: 'Informar OPAV disponíveis, rendendo QTO, apoio render QAR', badge: '' },
+          { cat: 'BI', text: 'Atualizar total de passantes e produtividade no grupo', badge: 'sys' },
+          { cat: 'OPERAÇÃO', text: 'Registrar PRINT dos OPAV na venda no grupo', badge: 'imp' },
+        ],
+        note: false
+      },
+      {
+        time: '13:00', title: 'Equipe 13H + Fluxo', color: 'day-color',
+        items: [
+          { cat: 'EFETIVO', text: 'Informar situação da equipe 13H às 22H: completo ou incompleto', badge: 'imp' },
+          { cat: 'EFETIVO', text: 'Informar atrasos e reposições, atentar em remanejar linhas em caso de faltas inesperadas', badge: 'imp' },
+          { cat: 'FLUXO', text: 'Atualização de Fluxo na Via com informações relevantes e ações tomadas (ex: Cabine 10 revertida)', badge: 'comm' },
+          { cat: 'OPERAÇÃO', text: 'Verificar provável Pista 04 como automática (horário de pico)', badge: '' },
+          { cat: 'FLUXO', text: 'Informar OPAV disponíveis, rendendo QTO, 1 apoio render QAR do Apoio Fixo', badge: '' },
+          { cat: 'BI', text: 'Print do BI atualizado: total de passantes e produtividade da equipe', badge: 'sys' },
+          { cat: 'OPERAÇÃO', text: 'Registrar PRINT dos OPAV na venda no grupo', badge: 'imp' },
+        ],
+        note: true
+      },
+      {
+        time: '14:00', title: 'Fluxo da Tarde', color: 'day-color',
+        items: [
+          { cat: 'FLUXO', text: 'Atualização de Fluxo na Via com ações tomadas para melhor fluidez (ex: Cabine 10 revertida)', badge: 'comm' },
+          { cat: 'OPERAÇÃO', text: 'Verificar provável Pista 04 como automática (horário de pico)', badge: '' },
+          { cat: 'FLUXO', text: 'Informar OPAV disponíveis e rendendo QTO', badge: '' },
+          { cat: 'BI', text: 'Print do BI atualizado: total de passantes e produtividade', badge: 'sys' },
+          { cat: 'OPERAÇÃO', text: 'Registrar PRINT dos OPAV na venda no grupo', badge: 'imp' },
+        ],
+        note: false
+      },
+      {
+        time: '15:00', title: 'Equipe 15H + Sinalização', color: 'day-color',
+        items: [
+          { cat: 'EFETIVO', text: 'Informar situação da equipe 15H às 00H: completo ou incompleto', badge: 'imp' },
+          { cat: 'EFETIVO', text: 'Informar atrasos e reposições, atentar em remanejar linhas em caso de faltas inesperadas', badge: 'imp' },
+          { cat: 'FLUXO', text: 'Atualização de Fluxo na Via com ações tomadas (ex: Cabine 10 revertida)', badge: 'comm' },
+          { cat: 'OPERAÇÃO', text: 'Verificar provável Pista 04 como automática (horário de pico)', badge: '' },
+          { cat: 'OPERAÇÃO', text: 'OPAV sem máquinas para venda: remanejar para SINALIZAÇÃO nas pistas AVI\'S em ambos os sentidos', badge: 'imp' },
+          { cat: 'OPERAÇÃO', text: 'Evidenciar com PRINT os OPAV no QTH das AVI\'S após devidamente posicionados', badge: '' },
+          { cat: 'OPERAÇÃO', text: 'Registrar PRINT dos OPAV na venda no grupo', badge: 'imp' },
+        ],
+        note: true
+      },
+      {
+        time: '16:00', title: 'Pico + Pistas 04/05', color: 'day-color',
+        items: [
+          { cat: 'FLUXO', text: 'Atualização de Fluxo na Via (ex: SINALIZAÇÃO)', badge: 'comm' },
+          { cat: 'OPERAÇÃO', text: 'Verificar provável Pistas 04 e 05 abertas como automática (horário de pico)', badge: 'imp' },
+          { cat: 'OPERAÇÃO', text: 'Se Pista 05 aberta: atentar com devidas sinalizações na praça, a partir da Cabine 11', badge: 'imp' },
+          { cat: 'OPERAÇÃO', text: 'Atentar nas sinalizações das saídas de pistas 04, 05 e pós-cabine 06 ao lado do corredor de CAT 9', badge: 'imp' },
+          { cat: 'FLUXO', text: 'Informar OPAV disponíveis a venda e rendendo QTO', badge: '' },
+          { cat: 'BI', text: 'Print do BI atualizado: total de passantes e produtividade', badge: 'sys' },
+          { cat: 'OPERAÇÃO', text: 'Registrar PRINT dos OPAV na venda no grupo', badge: 'imp' },
+        ],
+        note: true
+      },
+      {
+        time: '17:00', title: 'Fim do Turno Diurno', color: 'day-color',
+        items: [
+          { cat: 'FLUXO', text: 'Atualização de Fluxo na Via com informações relevantes (ex: SINALIZAÇÃO)', badge: 'comm' },
+          { cat: 'OPERAÇÃO', text: 'Verificar provável Pistas 04 e 05 abertas como automática', badge: '' },
+          { cat: 'OPERAÇÃO', text: 'Se Pista 05 aberta: atentar com devidas sinalizações', badge: '' },
+          { cat: 'FLUXO', text: 'Informar OPAV disponíveis a venda e rendendo QTO', badge: '' },
+          { cat: 'BI', text: 'Print do BI atualizado: total de passantes e produtividade', badge: 'sys' },
+          { cat: 'OPERAÇÃO', text: 'Registrar PRINT dos OPAV na venda no grupo', badge: 'imp' },
+          { cat: 'EQUIPAMENTOS', text: 'Organizar equipamentos de PISTAS AVI\'S e Tablets do setor de cobrança para equipe noturna', badge: 'equip' },
+          { cat: 'EQUIPAMENTOS', text: 'Recolher todas as baterias descarregadas da praça para que os equipamentos estejam carregados às 18H', badge: 'equip' },
+          { cat: 'OPERAÇÃO', text: 'Registrar PRINT dos OPAV na venda no grupo', badge: 'imp' },
+        ],
+        note: true
+      },
+    ]
+  },
+  night: {
+    label: 'Noturno',
+    hours: [
+      {
+        time: '18:00', title: 'Assumindo o Plantão', color: 'night-color',
+        items: [
+          { cat: 'COMUNICAÇÃO', text: 'Enviar mensagem no grupo informando a equipe que está assumindo o plantão (Supervisor, Líder, Controlador)', badge: 'comm' },
+          { cat: 'COMUNICAÇÃO', text: 'Informar quantidade de rádios na praça e no controle', badge: 'comm' },
+          { cat: 'COMUNICAÇÃO', text: 'Informar quantidade de equipamentos AVI\'S em funcionamento', badge: 'comm' },
+          { cat: 'COMUNICAÇÃO', text: 'Informar quantidade de máquinas dos OPAV em funcionamento', badge: 'comm' },
+          { cat: 'COMUNICAÇÃO', text: 'Informar quantidade de máquinas avulsas (controle/cobrança e operação/contingência)', badge: 'comm' },
+          { cat: 'EFETIVO', text: 'Informar situação da equipe 18H às 06H: completo ou incompleto', badge: 'imp' },
+          { cat: 'EFETIVO', text: 'Informar total de atrasos (informados e não informados) e reposições', badge: 'imp' },
+          { cat: 'EFETIVO', text: 'Em faltas sexta ou sábado sem reposição: solicitar operadores 15H às 00H para suporte até 01H', badge: 'imp' },
+          { cat: 'EFETIVO', text: 'Manter todas as cabines abertas em dias de evento', badge: 'imp' },
+          { cat: 'SISTEMA', text: 'Efetuar login com matrícula na CS e no SGAP o quanto antes', badge: 'sys' },
+          { cat: 'SISTEMA', text: 'Verificar abas abertas no navegador: Dimensionamento, R.O., Planilha de Chamados', badge: 'sys' },
+          { cat: 'SISTEMA', text: 'Verificar abas: Contagem tempo de fila, Retenção, Anomalias, Mapa de Vias, Maps, WhatsApp Web', badge: 'sys' },
+          { cat: 'SISTEMA', text: 'Verificar abas: BI, Sitef, Chamados SGR/TI/CAUT, SGAP, Bitwarden', badge: 'sys' },
+          { cat: 'CÂMERAS', text: 'Verificar e registrar se as câmeras do Avançado estão devidamente posicionadas', badge: '' },
+        ],
+        note: true
+      },
+      {
+        time: '19:00', title: 'Fluxo + Equipe Avançados', color: 'night-color',
+        items: [
+          { cat: 'FLUXO', text: 'Atualização de Fluxo na Via: altura do fluxo em ambos os sentidos e ações tomadas na praça', badge: 'comm' },
+          { cat: 'FLUXO', text: 'Informar quantidade de pistas AVI\'S abertas (incluindo pistas automáticas novas 04 e 05)', badge: '' },
+          { cat: 'FLUXO', text: 'Informar OPAV disponíveis, Equipe PROEIS, Equipe Setor de Cobrança', badge: '' },
+          { cat: 'FLUXO', text: 'Informar se estamos na semana de contagem do tempo de fila', badge: '' },
+          { cat: 'FLUXO', text: 'Informações relevantes (ex: Túnel Livre / Retenções)', badge: '' },
+          { cat: 'OPERAÇÃO', text: 'Evidenciar com imagens a equipe de operadores avançados na venda', badge: 'comm' },
+          { cat: 'OPERAÇÃO', text: 'Observar: operadores de 10H às 19H passando fechamento agora', badge: '' },
+          { cat: 'BI', text: 'Atualizar total de passantes e produtividade da equipe no grupo (dados do BI)', badge: 'sys' },
+        ],
+        note: true
+      },
+      {
+        time: '20:00', title: 'Transição OPAV', color: 'night-color',
+        items: [
+          { cat: 'FLUXO', text: 'Atualização de Fluxo na Via: altura do fluxo e ações tomadas na praça', badge: 'comm' },
+          { cat: 'OPERAÇÃO', text: 'Responsabilidade para melhor fluidez volta ao time de reversões do controlador noturno (OPAV saíram)', badge: 'imp' },
+          { cat: 'OPERAÇÃO', text: 'Evidenciar somente operadores de 15H às 00H na venda', badge: '' },
+          { cat: 'BI', text: 'Atualizar total de passantes e produtividade da equipe', badge: 'sys' },
+        ],
+        note: true
+      },
+      {
+        time: '21:00', title: 'Conversão de Pistas', color: 'night-color',
+        items: [
+          { cat: 'FLUXO', text: 'Atualização de Fluxo na Via: ações tomadas na praça', badge: 'comm' },
+          { cat: 'OPERAÇÃO', text: 'Verificar fluxo AVIS Norte: se leve (domingo/segunda), avaliar conversão da Pista 17 como manual', badge: '' },
+          { cat: 'OPERAÇÃO', text: 'Verificar Pista 04 sentido SUL para possível conversão', badge: '' },
+          { cat: 'OPERAÇÃO', text: 'Controlador + Líder analisam situação do fluxo antes de executar a manobra', badge: 'imp' },
+          { cat: 'BI', text: 'Não temos mais OPAV disponíveis nesse horário — atualizar grupo', badge: 'sys' },
+          { cat: 'BI', text: 'Atualizar total de passantes e produtividade da equipe', badge: 'sys' },
+        ],
+        note: true
+      },
+      {
+        time: '22:00', title: 'Fechamento Pista 17', color: 'night-color',
+        items: [
+          { cat: 'FLUXO', text: 'Atualização de Fluxo na Via e ações tomadas', badge: 'comm' },
+          { cat: 'OPERAÇÃO', text: 'Fechamento da Pista/Cabine 17 (sem rendição): solicitar apoio para fechar Cabine 04 e pedir para render a 17', badge: '' },
+          { cat: 'OPERAÇÃO', text: 'Se fluxo intenso em ambos os sentidos: solicitar ao QAR para render 17 e manter a mesma aberta por mais tempo', badge: '' },
+          { cat: 'OPERAÇÃO', text: 'Se fluxo leve em ambos os sentidos: fechar pistas 03 e 18, operadores ficam disponíveis para fechamento de R.O., bobines e álcool nas cabines', badge: '' },
+          { cat: 'BI', text: 'Atualizar total de passantes e produtividade da equipe', badge: 'sys' },
+        ],
+        note: true
+      },
+      {
+        time: '23:00', title: 'Auditoria AVI\'S', color: 'night-color',
+        items: [
+          { cat: 'FLUXO', text: 'Atualização de Fluxo na Via: ações tomadas na praça', badge: 'comm' },
+          { cat: 'OPERAÇÃO', text: 'Provável fluxo LEVE em ambos os sentidos nesse horário', badge: '' },
+          { cat: 'AUDITORIA', text: 'Iniciar procedimentos de auditoria das AVI\'S (duração média: 40 min)', badge: 'imp' },
+          { cat: 'AUDITORIA', text: 'Montagem do dimensionamento do dia seguinte', badge: 'imp' },
+          { cat: 'BI', text: 'Atualizar total de passantes e produtividade da equipe', badge: 'sys' },
+        ],
+        note: true
+      },
+      {
+        time: '00:00', title: 'Fechamento Equipe 15H', color: 'night-color',
+        items: [
+          { cat: 'EFETIVO', text: 'Equipe 15H às 00H está passando fechamento — ficar atento às mensagens no telefone do controle', badge: 'imp' },
+          { cat: 'EFETIVO', text: 'Alguns operadores podem solicitar UBER via telefone do controle', badge: '' },
+          { cat: 'OPERAÇÃO', text: 'Ficaremos com apenas pistas 01 a 20 abertas', badge: '' },
+          { cat: 'OPERAÇÃO', text: 'Sul: Cabines 05, 06, 07 e 08 abertas. Norte: Cabines 11, 12, 13, 14, 15 e 16 abertas', badge: '' },
+          { cat: 'OPERAÇÃO', text: 'Se fluxo moderado SUL: solicitar apoio para fechar Cabine 11 e abrir Cabine 10 (5 cabines por sentido)', badge: '' },
+        ],
+        note: true
+      },
+      {
+        time: '01:00', title: 'Horário de Violadores', color: 'night-color',
+        items: [
+          { cat: 'OPERAÇÃO', text: 'Fechamento das Cabines 05, 06, 11 e 15', badge: 'imp' },
+          { cat: 'OPERAÇÃO', text: 'INÍCIO do horário de VIOLADORES', badge: 'imp' },
+          { cat: 'OPERAÇÃO', text: 'Operador da Pista 01 faz alocação na Pista 04; Apoio faz sinalização do agulhão', badge: '' },
+          { cat: 'OPERAÇÃO', text: 'Fechamento das Pistas 01, 02 e 03 — manter somente Pista 04 aberta sentido SUL', badge: 'imp' },
+          { cat: 'OPERAÇÃO', text: 'Apoio faz alocação na Pista 03 caso seja necessário abrir para escoar o fluxo', badge: '' },
+        ],
+        note: true
+      },
+      {
+        time: '02:00', title: 'Redução de Cabines', color: 'night-color',
+        items: [
+          { cat: 'OPERAÇÃO', text: 'Fechamento das Cabines 14 e 16', badge: 'imp' },
+          { cat: 'OPERAÇÃO', text: 'Duas cabines abertas por sentido: SUL (07 e 08) e NORTE (12 e 13)', badge: '' },
+          { cat: 'OPERAÇÃO', text: 'Fim de semana com EXTRAS e equipe completa: manter pelo menos uma cabine a mais aberta por sentido', badge: '' },
+          { cat: 'EQUIPAMENTOS', text: 'Colocar equipamentos OPAV, KIT\'S das pistas AVI\'S e TABLETS do setor de cobrança para carregar na coordenação', badge: 'equip' },
+          { cat: 'EQUIPAMENTOS', text: 'Garantir 4 horas de carregamento suficientes antes da chegada da equipe às 06H', badge: 'equip' },
+        ],
+        note: true
+      },
+      {
+        time: '03:00', title: 'Abertura + Montagem', color: 'night-color',
+        items: [
+          { cat: 'OPERAÇÃO', text: 'Abertura das Cabines 05 e 06 (SUL) e 14 e 15 (NORTE)', badge: 'imp' },
+          { cat: 'OPERAÇÃO', text: 'Fechamento da Cabine 12 (QAR)', badge: '' },
+          { cat: 'OPERAÇÃO', text: '3 cabines abertas por sentido: SUL (05, 06, 07) e NORTE (13, 14, 15)', badge: '' },
+          { cat: 'OPERAÇÃO', text: 'APOIO inicia montagem das pistas reversíveis (23 e 24) + Pista 17 automática', badge: 'imp' },
+          { cat: 'OPERAÇÃO', text: 'Organizar a praça: máquinas avulsas nas cabines amarelas das pistas 01 e 20', badge: '' },
+          { cat: 'OPERAÇÃO', text: 'Deixar 3 cones pós-cabines para sinalizar veículos enguiçados aguardando apoio viário', badge: '' },
+        ],
+        note: true
+      },
+      {
+        time: '04:00', title: 'Fim dos Violadores', color: 'night-color',
+        items: [
+          { cat: 'OPERAÇÃO', text: 'FIM do horário de VIOLADORES', badge: 'imp' },
+          { cat: 'OPERAÇÃO', text: '4 cabines e 2 pistas AVI\'S abertas por sentido — verificar esse padrão', badge: 'imp' },
+          { cat: 'OPERAÇÃO', text: 'SUL: fechamento Pista 04, abertura Pistas 01 e 02 + Cabines 05, 06, 07 e 08', badge: '' },
+          { cat: 'OPERAÇÃO', text: 'NORTE: abertura Pista 19 + Cabines 13, 14, 15 e 16', badge: '' },
+          { cat: 'OPERAÇÃO', text: 'Ao fechar Pista 04 e abrir Pistas 01 e 02, montar Cabine 04 manual', badge: '' },
+        ],
+        note: true
+      },
+      {
+        time: '05:00', title: 'Apoio Fixo + Entrega', color: 'night-color',
+        items: [
+          { cat: 'EFETIVO', text: 'Informar efetivo da equipe APOIO FIXO: completo ou incompleto', badge: 'imp' },
+          { cat: 'FLUXO', text: 'Atualização de Fluxo na Via: total de pistas AVI\'S e cabines abertas por sentido', badge: 'comm' },
+          { cat: 'OPERAÇÃO', text: 'Apoio Fixo deve fazer QSO na coordenação para pegar equipamentos AVIS e rádios carregados', badge: 'equip' },
+          { cat: 'OPERAÇÃO', text: 'Deixar equipamentos disponíveis no Cash Up para equipe das 06H (abertura Pistas 03, 17, 18 e 24 reversível)', badge: 'equip' },
+          { cat: 'OPERAÇÃO', text: 'Quem faz abertura da Pista 23 (reversível) é o APOIO NOTURNO', badge: 'imp' },
+        ],
+        note: true
+      },
+    ]
+  }
+};
+
+// ─────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────
+let currentShift = 'day';
+let checked = {};
+let notes = {};
+
+function stateKey(shift, hIdx, iIdx) { return `${shift}_${hIdx}_${iIdx}`; }
+function noteKey(shift, hIdx) { return `note_${shift}_${hIdx}`; }
+
+// ─────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────
+function renderChecklist() {
+  const container = document.getElementById('checklist-container');
+  container.innerHTML = '';
+  const data = SHIFTS[currentShift];
+  const accentVar = currentShift === 'day' ? '--accent-day' : '--accent-night';
+
+  data.hours.forEach((hour, hIdx) => {
+    const block = document.createElement('div');
+    block.className = 'hour-block';
+    block.id = `block-${hIdx}`;
+
+    // Group items by category
+    const cats = {};
+    hour.items.forEach((item, iIdx) => {
+      if (!cats[item.cat]) cats[item.cat] = [];
+      cats[item.cat].push({ ...item, iIdx });
+    });
+
+    // Count checked in this hour
+    const total = hour.items.length;
+    const done = hour.items.filter((_, i) => checked[stateKey(currentShift, hIdx, i)]).length;
+
+    block.innerHTML = `
+      <div class="hour-header" onclick="toggleBlock(${hIdx})">
+        <div style="display:flex;align-items:center;gap:0">
+          <span class="hour-tag ${hour.color}">${hour.time}</span>
+          <span class="hour-title">${hour.title}</span>
+        </div>
+        <div class="hour-meta">
+          <span class="hour-count" style="color:${done===total?'var(--accent-ok)':'var(--text-dim)'}">${done}/${total}</span>
+          <span class="hour-chevron">▼</span>
+        </div>
+      </div>
+      <div class="hour-body" id="body-${hIdx}"></div>
+    `;
+
+    container.appendChild(block);
+    const body = document.getElementById(`body-${hIdx}`);
+
+    Object.entries(cats).forEach(([catName, items]) => {
+      const catDiv = document.createElement('div');
+      catDiv.className = 'cat-label';
+      catDiv.textContent = catName;
+      body.appendChild(catDiv);
+
+      items.forEach(({ text, badge, iIdx }) => {
+        const key = stateKey(currentShift, hIdx, iIdx);
+        const isDone = !!checked[key];
+        const item = document.createElement('div');
+        item.className = `check-item${isDone ? ' done' : ''}`;
+        item.dataset.key = key;
+        item.dataset.hidx = hIdx;
+        item.onclick = () => toggleItem(key, hIdx);
+        item.innerHTML = `
+          <div class="check-box">${isDone ? '✓' : ''}</div>
+          <span class="check-text">${text}</span>
+          ${badge ? `<span class="check-badge badge-${badge}">${badgeLabel(badge)}</span>` : ''}
+        `;
+        body.appendChild(item);
+      });
+    });
+
+    if (hour.note) {
+      const nw = document.createElement('div');
+      nw.className = 'note-wrap';
+      const nKey = noteKey(currentShift, hIdx);
+      nw.innerHTML = `
+        <label>Observações · ${hour.time}</label>
+        <textarea placeholder="Anotações, intercorrências, informações relevantes..."
+          onchange="notes['${nKey}']=this.value">${notes[nKey] || ''}</textarea>
+      `;
+      body.appendChild(nw);
+    }
+  });
+
+  updateProgress();
+}
+
+function badgeLabel(b) {
+  return { imp: 'urgente', comm: 'comunicar', sys: 'sistema', equip: 'equipamento' }[b] || b;
+}
+
+function toggleBlock(hIdx) {
+  const block = document.getElementById(`block-${hIdx}`);
+  block.classList.toggle('open');
+}
+
+function toggleItem(key, hIdx) {
+  checked[key] = !checked[key];
+  // update DOM without full re-render
+  const el = document.querySelector(`[data-key="${key}"]`);
+  if (el) {
+    el.classList.toggle('done', checked[key]);
+    const box = el.querySelector('.check-box');
+    box.textContent = checked[key] ? '✓' : '';
+  }
+  updateHourCount(hIdx);
+  updateProgress();
+}
+
+function updateHourCount(hIdx) {
+  const hour = SHIFTS[currentShift].hours[hIdx];
+  const total = hour.items.length;
+  const done = hour.items.filter((_, i) => checked[stateKey(currentShift, hIdx, i)]).length;
+  const countEl = document.querySelector(`#block-${hIdx} .hour-count`);
+  if (countEl) {
+    countEl.textContent = `${done}/${total}`;
+    countEl.style.color = done === total ? 'var(--accent-ok)' : 'var(--text-dim)';
+  }
+}
+
+function updateProgress() {
+  const data = SHIFTS[currentShift];
+  let total = 0, done = 0;
+  data.hours.forEach((hour, hIdx) => {
+    hour.items.forEach((_, iIdx) => {
+      total++;
+      if (checked[stateKey(currentShift, hIdx, iIdx)]) done++;
+    });
+  });
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('progressPct').textContent = pct + '%';
+  document.getElementById('statusText').innerHTML = `<strong>${done}</strong> de <strong>${total}</strong> itens concluídos`;
+}
+
+// ─────────────────────────────────────────
+// SHIFT
+// ─────────────────────────────────────────
+function setShift(shift) {
+  currentShift = shift;
+  document.querySelectorAll('.shift-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.shift-btn.${shift}`).classList.add('active');
+  renderChecklist();
+}
+
+// ─────────────────────────────────────────
+// RESET
+// ─────────────────────────────────────────
+function resetAll() {
+  if (!confirm('Resetar todo o checklist do turno atual?')) return;
+  const data = SHIFTS[currentShift];
+  data.hours.forEach((hour, hIdx) => {
+    hour.items.forEach((_, iIdx) => {
+      delete checked[stateKey(currentShift, hIdx, iIdx)];
+    });
+    delete notes[noteKey(currentShift, hIdx)];
+  });
+  renderChecklist();
+  showToast('Checklist resetado');
+}
+
+// ─────────────────────────────────────────
+// EMAIL
+// ─────────────────────────────────────────
+function openEmailModal() { document.getElementById('emailModal').classList.add('open'); }
+function closeEmailModal() { document.getElementById('emailModal').classList.remove('open'); }
+
+function sendEmail() {
+  const to = document.getElementById('emailTo').value.trim();
+  const cc = document.getElementById('emailCc').value.trim();
+  const ctrl = document.getElementById('controlador').value || '---';
+  const sup = document.getElementById('supervisor').value || '---';
+  const lider = document.getElementById('lider').value || '---';
+  const now = new Date();
+  const shiftLabel = currentShift === 'day' ? 'DIURNO (06H-18H)' : 'NOTURNO (18H-06H)';
+  const data = SHIFTS[currentShift];
+
+  let total = 0, done = 0;
+  let body = `RELATÓRIO DE CHECKLIST · TURNO ${shiftLabel}\n`;
+  body += `Data: ${now.toLocaleDateString('pt-BR')} | Hora: ${now.toLocaleTimeString('pt-BR')}\n`;
+  body += `Controlador: ${ctrl} | Supervisor: ${sup} | Líder: ${lider}\n`;
+  body += `${'─'.repeat(60)}\n\n`;
+
+  data.hours.forEach((hour, hIdx) => {
+    const hourDone = hour.items.filter((_, i) => checked[stateKey(currentShift, hIdx, i)]).length;
+    const hourTotal = hour.items.length;
+    body += `⏰ ${hour.time} · ${hour.title} (${hourDone}/${hourTotal})\n`;
+    hour.items.forEach((item, iIdx) => {
+      const key = stateKey(currentShift, hIdx, iIdx);
+      const mark = checked[key] ? '✅' : '⬜';
+      body += `  ${mark} ${item.text}\n`;
+      total++;
+      if (checked[key]) done++;
+    });
+    const nKey = noteKey(currentShift, hIdx);
+    if (notes[nKey]) body += `  📝 OBS: ${notes[nKey]}\n`;
+    body += '\n';
+  });
+
+  body += `${'─'.repeat(60)}\n`;
+  body += `RESUMO: ${done}/${total} itens concluídos (${Math.round((done/total)*100)}%)\n`;
+
+  const subject = encodeURIComponent(`Checklist Controlador · Turno ${shiftLabel} · ${now.toLocaleDateString('pt-BR')}`);
+  const encodedBody = encodeURIComponent(body);
+  let mailUrl = `mailto:${to}?subject=${subject}&body=${encodedBody}`;
+  if (cc) mailUrl += `&cc=${encodeURIComponent(cc)}`;
+
+  window.location.href = mailUrl;
+  closeEmailModal();
+  showToast('Abrindo cliente de e-mail...');
+}
+
+// ─────────────────────────────────────────
+// TOAST
+// ─────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ─────────────────────────────────────────
+// CLOCK
+// ─────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('pt-BR');
+  document.getElementById('dateDisplay').textContent =
+    now.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' }).toUpperCase();
+
+  // auto-suggest shift based on hour
+  const h = now.getHours();
+  const suggested = (h >= 6 && h < 18) ? 'day' : 'night';
+  if (!window._shiftManuallySet) {
+    if (currentShift !== suggested) {
+      currentShift = suggested;
+      document.querySelectorAll('.shift-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector(`.shift-btn.${suggested}`).classList.add('active');
+      renderChecklist();
+    }
+  }
+}
+
+// mark shift as manually set when clicked
+document.querySelectorAll('.shift-btn').forEach(btn => {
+  btn.addEventListener('click', () => { window._shiftManuallySet = true; });
+});
+
+// close modal on overlay click
+document.getElementById('emailModal').addEventListener('click', function(e) {
+  if (e.target === this) closeEmailModal();
+});
+
+// ─────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────
+updateClock();
+setInterval(updateClock, 1000);
+renderChecklist();
+
+// ─────────────────────────────────────────
+// PERSISTÊNCIA LOCAL (sobrevive ao fechar)
+// ─────────────────────────────────────────
+function saveState() {
+  try {
+    localStorage.setItem('ckl_checked', JSON.stringify(checked));
+    localStorage.setItem('ckl_notes', JSON.stringify(notes));
+    localStorage.setItem('ckl_shift', currentShift);
+    localStorage.setItem('ckl_ctrl', document.getElementById('controlador').value);
+    localStorage.setItem('ckl_sup', document.getElementById('supervisor').value);
+    localStorage.setItem('ckl_lider', document.getElementById('lider').value);
+    localStorage.setItem('ckl_date', new Date().toDateString());
+  } catch(e) {}
+}
+
+function loadState() {
+  try {
+    const savedDate = localStorage.getItem('ckl_date');
+    const today = new Date().toDateString();
+    // limpa automaticamente se for de outro dia
+    if (savedDate && savedDate !== today) {
+      localStorage.removeItem('ckl_checked');
+      localStorage.removeItem('ckl_notes');
+      return;
+    }
+    const c = localStorage.getItem('ckl_checked');
+    const n = localStorage.getItem('ckl_notes');
+    const s = localStorage.getItem('ckl_shift');
+    if (c) checked = JSON.parse(c);
+    if (n) notes = JSON.parse(n);
+    if (s) { currentShift = s; window._shiftManuallySet = true; }
+    document.getElementById('controlador').value = localStorage.getItem('ckl_ctrl') || '';
+    document.getElementById('supervisor').value = localStorage.getItem('ckl_sup') || '';
+    document.getElementById('lider').value = localStorage.getItem('ckl_lider') || '';
+    if (s) {
+      document.querySelectorAll('.shift-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector(`.shift-btn.${s}`)?.classList.add('active');
+    }
+    renderChecklist();
+  } catch(e) {}
+}
+
+// salva a cada interação
+document.addEventListener('click', saveState);
+document.addEventListener('change', saveState);
+loadState();
+
+// ─────────────────────────────────────────
+// BANNER MOBILE
+// ─────────────────────────────────────────
+const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+if (isMobile && !isStandalone) {
+  document.getElementById('install-banner').classList.add('visible');
+}
+</script>
+</body>
+</html>
